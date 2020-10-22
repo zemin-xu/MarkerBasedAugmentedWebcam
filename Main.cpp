@@ -4,6 +4,7 @@
 #include "opencv2/imgproc.hpp"             // OpenCV Image Processing routines
 #include <iostream>
 #include <opencv2/features2d.hpp>
+#include "opencv2/flann.hpp"
 
 using namespace std;
 using namespace cv;                        // OpenCV classes and routines
@@ -74,11 +75,29 @@ void update_frame()
 	siftPtr->detectAndCompute(frame, noArray(), keypoints2, descriptors2);
 
 	/* feature description */
-	Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::BRUTEFORCE);
-	vector<DMatch> matches;
-	matcher->match(descriptors1, descriptors2, matches);
+	Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+	std::vector< std::vector<DMatch> > knn_matches;
+	matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+	//-- Filter matches using the Lowe's ratio test
+	const float ratio_threshold = 0.7f;
+	std::vector<DMatch> good_matches;
+	for (size_t i = 0; i < knn_matches.size(); i++)
+	{
+		if (knn_matches[i][0].distance < ratio_threshold * knn_matches[i][1].distance)
+		{
+			good_matches.push_back(knn_matches[i][0]);
+		}
+	}
 	//-- Draw matches
-	drawMatches(img_example, keypoints1, frame, keypoints2, matches, img_matches);
+	Mat img_matches;
+	drawMatches(img_example, keypoints1, frame, keypoints2, good_matches, img_matches, Scalar::all(-1),
+		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	//-- Show detected matches
+
+	//-- Draw matches
+
+//	drawMatches(img_example, keypoints1, frame, keypoints2, matches, img_matches);
+
 	//-- Show detected matches
 	imshow(window_out_name, img_matches);
 }
