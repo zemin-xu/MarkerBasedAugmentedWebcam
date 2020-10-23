@@ -10,15 +10,20 @@
 using namespace std;
 using namespace cv;                        // OpenCV classes and routines
 
-Mat img_example;
+Mat img_example, img_target;
 
 Mat frame, frame_gray, frame_gray32f, frame_smoothed, frame_overlay;
 
 Mat img_matches;
 
+Mat* image_composite;
+
 Mat descriptors1, descriptors2;
 
 vector<KeyPoint> keypoints1, keypoints2;
+
+vector<Point2f>support;
+vector<Point2f>registered_support;
 
 VideoCapture cap;
 bool isGrayCamera = false;
@@ -34,11 +39,13 @@ int main(int argc, char* argv[])
 {
 	//create_GUI();
 
-	string image_path = samples::findFile("poemes.jpg");
-	img_example = imread(image_path, IMREAD_COLOR);
-	if (img_example.empty())
+	string image_example_path = samples::findFile("poemes.jpg");
+	string image_target_path = samples::findFile("starry_night.jpg");
+	img_example = imread(image_example_path, IMREAD_COLOR);
+	img_target = imread(image_target_path, IMREAD_COLOR);
+	if (img_example.empty() || img_target.empty())
 	{
-		std::cout << "Could not read the image: " << image_path << std::endl;
+		std::cout << "Could not read the image" << endl;
 		return 1;
 	}
 
@@ -104,8 +111,12 @@ void update_frame()
 		obj.push_back(keypoints1[good_matches[i].queryIdx].pt);
 		scene.push_back(keypoints2[good_matches[i].trainIdx].pt);
 	}
+
 	Mat H = findHomography(obj, scene, RANSAC);
+	warpPerspective(img_example, frame, H, img_example.size());
 	//-- Get the corners from the image_1 ( the object to be "detected" )
+
+//-- Get the corners from the image_1 ( the object to be "detected" )
 	std::vector<Point2f> obj_corners(4);
 	obj_corners[0] = Point2f(0, 0);
 	obj_corners[1] = Point2f((float)img_example.cols, 0);
@@ -123,5 +134,14 @@ void update_frame()
 	line(img_matches, scene_corners[3] + Point2f((float)img_example.cols, 0),
 		scene_corners[0] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
 
-	imshow(window_out_name, img_matches);
+	Mat* the_image = &img_target;
+
+	// Concatenate source and fused images horizontally
+	hconcat(img_example, *the_image, *image_composite);
+
+	// Display result
+	imshow("out", *image_composite);
+
+	//-- Show detected matches
+//		imshow("Good Matches & Object detection", img_matches);
 }
