@@ -5,6 +5,7 @@
 #include <iostream>
 #include <opencv2/features2d.hpp>
 #include "opencv2/flann.hpp"
+#include "opencv2/calib3d.hpp"
 
 using namespace std;
 using namespace cv;                        // OpenCV classes and routines
@@ -92,12 +93,35 @@ void update_frame()
 	Mat img_matches;
 	drawMatches(img_example, keypoints1, frame, keypoints2, good_matches, img_matches, Scalar::all(-1),
 		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	//-- Show detected matches
 
-	//-- Draw matches
+	/*homography*/
+	 //-- Localize the object
+	std::vector<Point2f> obj;
+	std::vector<Point2f> scene;
+	for (size_t i = 0; i < good_matches.size(); i++)
+	{
+		//-- Get the keypoints from the good matches
+		obj.push_back(keypoints1[good_matches[i].queryIdx].pt);
+		scene.push_back(keypoints2[good_matches[i].trainIdx].pt);
+	}
+	Mat H = findHomography(obj, scene, RANSAC);
+	//-- Get the corners from the image_1 ( the object to be "detected" )
+	std::vector<Point2f> obj_corners(4);
+	obj_corners[0] = Point2f(0, 0);
+	obj_corners[1] = Point2f((float)img_example.cols, 0);
+	obj_corners[2] = Point2f((float)img_example.cols, (float)img_example.rows);
+	obj_corners[3] = Point2f(0, (float)img_example.rows);
+	std::vector<Point2f> scene_corners(4);
+	perspectiveTransform(obj_corners, scene_corners, H);
+	//-- Draw lines between the corners (the mapped object in the scene - image_2 )
+	line(img_matches, scene_corners[0] + Point2f((float)img_example.cols, 0),
+		scene_corners[1] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[1] + Point2f((float)img_example.cols, 0),
+		scene_corners[2] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[2] + Point2f((float)img_example.cols, 0),
+		scene_corners[3] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[3] + Point2f((float)img_example.cols, 0),
+		scene_corners[0] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
 
-//	drawMatches(img_example, keypoints1, frame, keypoints2, matches, img_matches);
-
-	//-- Show detected matches
 	imshow(window_out_name, img_matches);
 }
