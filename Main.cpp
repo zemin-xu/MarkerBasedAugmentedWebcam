@@ -10,9 +10,13 @@
 using namespace std;
 using namespace cv;
 
+const int NUM_IMG_IN = 1;
+Mat img_in[NUM_IMG_IN];
+
 Mat img_example, img_target;
 
-Mat frame, frame_gray, frame_gray32f, frame_smoothed, frame_overlay;
+Mat frame; // realtime webcam frame
+Mat frame_gray, frame_gray32f, frame_smoothed, frame_overlay;
 
 Mat img_matches;
 
@@ -35,10 +39,47 @@ char window_out_name[256] = "output";
 void create_GUI();
 
 void update_frame();
+
+int usage(char* prgname);
+
 int main(int argc, char* argv[])
 {
+	int   i;
+	char  filenames[2][256];
+
+	// Parse arguments
+	if (argc > 1)
+		for (i = 1; i < argc; i++) {
+			if (!strcmp(argv[i], "-i")) {        // Input image
+				if (++i > argc)
+					usage(argv[0]);
+				sprintf(filenames[0], "%s", argv[i]);
+			}
+			else {
+				cout << "! Invalid program option " << argv[i] << endl;
+				usage(argv[0]);
+			}
+		}
+	else {
+		cout << "! Missing argument" << endl;
+		usage(argv[0]);
+	}
+
+	/* store input images into the image array */
+	for (i = 0; i < NUM_IMG_IN; i++) {
+		// Load image
+		img_in[i] = imread(filenames[i], IMREAD_UNCHANGED);
+		if (img_in[i].empty()) {
+			cout << "! Cannot read the image " << filenames[i] << endl;
+			return -1;
+		}
+		imshow("out", img_in[i]);
+	}
+
+	waitKey(0);
 	//create_GUI();
 
+	/*
 	string image_example_path = samples::findFile("poemes.jpg");
 	string image_target_path = samples::findFile("starry_night.jpg");
 	img_example = imread(image_example_path, IMREAD_COLOR);
@@ -61,6 +102,7 @@ int main(int argc, char* argv[])
 		if (waitKey(30) >= 0)
 			break;
 	}
+	*/
 
 	destroyAllWindows();
 	return 0;
@@ -145,3 +187,15 @@ void update_frame()
 	//-- Show detected matches
 	imshow("Good Matches & Object detection", img_matches);
 }
+
+//-----------------------------------------------------------------------------
+
+int usage(char* prgname)
+{
+	cout << "Usage: " << prgname << " ";
+	cout << "[-i {image file}]" << endl;
+
+	exit(-1);
+}
+
+//-----------------------------------------------------------------------------
