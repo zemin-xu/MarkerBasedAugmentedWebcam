@@ -10,7 +10,10 @@
 using namespace std;
 using namespace cv;
 
-const int NUM_IMG_IN = 1;
+const int NUM_IMG_IN = 2;
+
+char  input_img_paths[NUM_IMG_IN][256];
+
 Mat img_in[NUM_IMG_IN];
 
 Mat img_example, img_target;
@@ -36,45 +39,20 @@ Scalar KPColor = Scalar::all(-1);
 char window_out_name[256] = "output";
 
 // signature of functions
-void create_GUI();
+void parseInput(int argc, char* argv[]);
 
-void update_frame();
+void init();
+
+void createGUI();
+
+void update();
 
 int usage(char* prgname);
 
 int main(int argc, char* argv[])
 {
-	int   i;
-	char  filenames[2][256];
-
-	// Parse arguments
-	if (argc > 1)
-		for (i = 1; i < argc; i++) {
-			if (!strcmp(argv[i], "-i")) {        // Input image
-				if (++i > argc)
-					usage(argv[0]);
-				sprintf(filenames[0], "%s", argv[i]);
-			}
-			else {
-				cout << "! Invalid program option " << argv[i] << endl;
-				usage(argv[0]);
-			}
-		}
-	else {
-		cout << "! Missing argument" << endl;
-		usage(argv[0]);
-	}
-
-	/* store input images into the image array */
-	for (i = 0; i < NUM_IMG_IN; i++) {
-		// Load image
-		img_in[i] = imread(filenames[i], IMREAD_UNCHANGED);
-		if (img_in[i].empty()) {
-			cout << "! Cannot read the image " << filenames[i] << endl;
-			return -1;
-		}
-		imshow("out", img_in[i]);
-	}
+	parseInput(argc, argv);
+	init();
 
 	waitKey(0);
 	//create_GUI();
@@ -108,11 +86,48 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-void create_GUI()
+void parseInput(int argc, char* argv[])
+{
+	// Parse arguments
+// this simple parser could only load images
+	if (argc >= NUM_IMG_IN * 2 + 1)
+		for (int i = 1; i < argc; i++) {
+			if (!strcmp(argv[i], "-i")) {        // Input image
+				if (++i > argc)
+					usage(argv[0]);
+				sprintf(input_img_paths[(i / 2) - 1], "%s", argv[i]);
+			}
+			else {
+				cout << "!!! Invalid program option !!!" << argv[i] << endl;
+				usage(argv[0]);
+			}
+		}
+	else
+	{
+		cout << "!!! Missing argument !!!" << endl;
+		usage(argv[0]);
+	}
+
+	/* store input images into the image array */
+	for (int i = 0; i < NUM_IMG_IN; i++) {
+		// Load image
+		img_in[i] = imread(input_img_paths[i], IMREAD_UNCHANGED);
+		if (img_in[i].empty()) {
+			cout << "!!! Cannot read the image " << input_img_paths[i] << " !!!" << endl;
+		}
+		imshow("ds", img_in[i]);
+	}
+}
+
+void init()
 {
 }
 
-void update_frame()
+void createGUI()
+{
+}
+
+void update()
 {
 	cap >> frame;
 
@@ -192,9 +207,9 @@ void update_frame()
 
 int usage(char* prgname)
 {
+	cout << "This program should load " << NUM_IMG_IN << " images as input" << endl;
 	cout << "Usage: " << prgname << " ";
 	cout << "[-i {image file}]" << endl;
-
 	exit(-1);
 }
 
