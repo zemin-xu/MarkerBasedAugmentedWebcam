@@ -1,14 +1,14 @@
-#include "opencv2/core.hpp"                // OpenCV core routines
-#include <opencv2/videoio.hpp>             // OpenCV video routines
-#include "opencv2/highgui.hpp"             // OpenCV GUI routines
-#include "opencv2/imgproc.hpp"             // OpenCV Image Processing routines
 #include <iostream>
+#include "opencv2/core.hpp"
+#include <opencv2/videoio.hpp>
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
 #include <opencv2/features2d.hpp>
 #include "opencv2/flann.hpp"
 #include "opencv2/calib3d.hpp"
 
 using namespace std;
-using namespace cv;                        // OpenCV classes and routines
+using namespace cv;
 
 Mat img_example, img_target;
 
@@ -134,14 +134,14 @@ void update_frame()
 	line(img_matches, scene_corners[3] + Point2f((float)img_example.cols, 0),
 		scene_corners[0] + Point2f((float)img_example.cols, 0), Scalar(0, 255, 0), 4);
 
-	Mat* the_image = &img_target;
+	//Mat* the_image = &img_target;
 
 	// Concatenate source and fused images horizontally
-	hconcat(img_example, *the_image, *image_composite);
+	//hconcat(img_example, *the_image, *image_composite);
 
 	// Display result
-	imshow("out", *image_composite);
+	//imshow("out", *image_composite);
 
 	//-- Show detected matches
-//		imshow("Good Matches & Object detection", img_matches);
+	imshow("Good Matches & Object detection", img_matches);
 }
