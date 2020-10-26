@@ -10,13 +10,13 @@
 using namespace std;
 using namespace cv;
 
-const int NUM_IMG_IN = 2;
+const char* WIN_KEYPOINTS_NAME = "Keypoints";
 const char* WIN_SETTINGS_NAME = "Settings";
 const char* WIN_OUT_NAME = "Output";
 
-char  input_img_paths[NUM_IMG_IN][256];
+char  input_img_paths[2][256];
 
-Mat img_in[NUM_IMG_IN], img_gray[NUM_IMG_IN], img_out[NUM_IMG_IN];
+Mat img_in[2], img_gray[2], img_out[2];
 Mat img_sample, img_target;
 Mat frame; // realtime webcam frame
 Mat frame_gray, frame_gray32f, frame_smoothed, frame_overlay;
@@ -126,7 +126,7 @@ void parseInput(int argc, char* argv[])
 {
 	// Parse arguments
 // this simple parser could only load images
-	if (argc >= NUM_IMG_IN * 2 + 1)
+	if (argc >= 2 * 2 + 1)
 		for (int i = 1; i < argc; i++) {
 			if (!strcmp(argv[i], "-i")) {        // Input image
 				if (++i > argc)
@@ -145,16 +145,13 @@ void parseInput(int argc, char* argv[])
 	}
 
 	/* store input images into the image array */
-	for (int i = 0; i < NUM_IMG_IN; i++) {
+	for (int i = 0; i < 2; i++) {
 		// Load image
 		img_in[i] = imread(input_img_paths[i], IMREAD_UNCHANGED);
 		if (img_in[i].empty()) {
 			cout << "!!! Cannot read the image " << input_img_paths[i] << " !!!" << endl;
+			break;
 		}
-	}
-
-	for (int i = 0; i < NUM_IMG_IN; i++)
-	{
 		cvtColor(img_in[i], img_gray[i], COLOR_BGR2GRAY);
 	}
 
@@ -198,13 +195,14 @@ void update()
 
 	/* KPDetector extraction */
 	curr_KPDetector->detectAndCompute(img_sample, noArray(), keypoints_sample, descriptors_sample);
-	curr_KPDetector->detectAndCompute(frame, noArray(), keypoints_frame, descriptors_frame);
+	curr_KPDetector->detectAndCompute(frame_gray, noArray(), keypoints_frame, descriptors_frame);
 
-	drawKeypoints(img_sample, keypoints_sample, img_sample);
-	drawKeypoints(frame, keypoints_sample, frame);
+	drawKeypoints(img_sample, keypoints_sample, img_out[0], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(img_target, keypoints_sample, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	//-- Show detected (drawn) keypoints
 	imshow(WIN_OUT_NAME, frame);
-	imshow(WIN_SETTINGS_NAME, img_sample);
+	imshow(WIN_SETTINGS_NAME, img_out[0]);
+	imshow(WIN_KEYPOINTS_NAME, img_out[1]);
 
 	/* descriptor matching */
 	/*
@@ -290,7 +288,7 @@ void callback(int value, void* userdata)
 
 int usage(char* prgname)
 {
-	cout << "This program should load " << NUM_IMG_IN << " images as input" << endl;
+	cout << "This program should load " << 2 << " images as input" << endl;
 	cout << "Usage: " << prgname << " ";
 	cout << "[-i {image file}]" << endl;
 	exit(-1);
