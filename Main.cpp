@@ -11,6 +11,8 @@ using namespace std;
 using namespace cv;
 
 const int NUM_IMG_IN = 2;
+const char* WIN_SETTINGS_NAME = "Settings";
+const char* WIN_OUT_NAME = "Output";
 
 char  input_img_paths[NUM_IMG_IN][256];
 
@@ -25,6 +27,66 @@ Mat img_matches;
 
 Mat* image_composite;
 
+/* pointers to feature extractor */
+Ptr<AKAZE> akaze;
+Ptr<ORB> orb;
+Ptr<SIFT> sift;
+Ptr<Feature2D> curr_KPDetector;
+
+/* Keypoint detector trackbar */
+const char* KPDetector_name = "KPDetector";
+int KPDetector_max_value = 2;
+int KPDetector_value;
+int KPDetector_id = 0;
+
+Ptr<Feature2D> setKPDetector(int id)
+{
+	switch (id) {
+	case 0:
+	default:
+		KPDetector_name = "SIFT";
+		return sift;
+	case 1:
+		KPDetector_name = "AKAZE";
+		return akaze;
+	case 2:
+		KPDetector_name = "ORB";
+		return orb;
+	}
+}
+
+/* pointers to Descriptor Matcher */
+Ptr<DescriptorMatcher> BFL1_matcher;       // - BruteForce (L1 norm)
+Ptr<DescriptorMatcher> BFL2_matcher;       // - BruteForce (L2 norm)
+Ptr<DescriptorMatcher> BFHamming_matcher;  // - BruteForce-Hamming
+Ptr<DescriptorMatcher> FLANN_based_matcher;
+Ptr<DescriptorMatcher> curr_descriptor_matcher;
+
+/* Descriptor Matcher trackbar */
+const char* descriptor_matcher_name = "Descriptor Matcher";
+int descriptor_matcher_max_value = 3;
+int descriptor_matcher_value;
+int descriptor_matcher_id = 0;
+
+Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
+{
+	switch (id) {
+	case 0:
+	default:
+		descriptor_matcher_name = "FLANN based";
+		return FLANN_based_matcher;
+	case 1:
+		descriptor_matcher_name = "BruteForce (L2 norm)";
+		return BFL2_matcher;
+	case 2:
+		descriptor_matcher_name = "BruteForce-Hamming";
+		return BFHamming_matcher;
+	case 3: // KAZE
+		descriptor_matcher_name = "BruteForce (L1 norm)";
+		return BFL1_matcher;
+	}
+}
+
 Mat descriptors1, descriptors2;
 
 vector<KeyPoint> keypoints1, keypoints2;
@@ -36,17 +98,13 @@ VideoCapture cap;
 bool isGrayCamera = false;
 
 Scalar KPColor = Scalar::all(-1);
-char window_out_name[256] = "output";
 
 // signature of functions
 void parseInput(int argc, char* argv[]);
-
 void init();
-
 void createGUI();
-
 void update();
-
+void callback(int value, void* userdata);
 int usage(char* prgname);
 
 int main(int argc, char* argv[])
@@ -54,35 +112,20 @@ int main(int argc, char* argv[])
 	parseInput(argc, argv);
 	init();
 
-	waitKey(0);
-	//create_GUI();
-
-	/*
-	string image_example_path = samples::findFile("poemes.jpg");
-	string image_target_path = samples::findFile("starry_night.jpg");
-	img_example = imread(image_example_path, IMREAD_COLOR);
-	img_target = imread(image_target_path, IMREAD_COLOR);
-	if (img_example.empty() || img_target.empty())
-	{
-		std::cout << "Could not read the image" << endl;
-		return 1;
-	}
-
-	cap.open(0);
-	cap >> frame;
-	if (frame.channels() == 1)
-		isGrayCamera = true;
+	cout << "init" << endl;
+	createGUI();
+	callback(KPDetector_id, 0);
 
 	while (true)
 	{
-		update_frame();
-		// Listen to next event - Exit if key pressed
+		update();
+
 		if (waitKey(30) >= 0)
 			break;
 	}
-	*/
 
 	destroyAllWindows();
+
 	return 0;
 }
 
@@ -115,34 +158,55 @@ void parseInput(int argc, char* argv[])
 		if (img_in[i].empty()) {
 			cout << "!!! Cannot read the image " << input_img_paths[i] << " !!!" << endl;
 		}
-		imshow("ds", img_in[i]);
 	}
+
+	img_example = img_in[0];
+	img_target = img_in[1];
 }
 
 void init()
 {
+	// webcam input
+	cap.open(0);
+
+	/* Keypoint Detector pointers creation */
+	akaze = AKAZE::create();
+	orb = ORB::create();
+	sift = SIFT::create();
+
+	/* Descriptor Matcher pointers creation */
+	BFL2_matcher = DescriptorMatcher::create("BruteForce");
+	BFHamming_matcher = DescriptorMatcher::create("BruteForce-Hamming");
+	FLANN_based_matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
 }
 
 void createGUI()
 {
+	namedWindow(WIN_SETTINGS_NAME, WINDOW_AUTOSIZE);
+
+	/* Keypoint Detector */
+	KPDetector_value = (int)KPDetector_id;
+	createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_value,
+		KPDetector_max_value, (TrackbarCallback)callback);
+	/* Descriptor Matcher */
+	descriptor_matcher_value = (int)descriptor_matcher_id;
+	createTrackbar(descriptor_matcher_name, WIN_SETTINGS_NAME, &descriptor_matcher_value,
+		descriptor_matcher_max_value, (TrackbarCallback)callback);
 }
 
 void update()
 {
+	// update webcam input
 	cap >> frame;
-
 	cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 
 	/* feature detection */
-	Ptr<SIFT> siftPtr = SIFT::create();
-
-	siftPtr->detectAndCompute(img_example, noArray(), keypoints1, descriptors1);
-	siftPtr->detectAndCompute(frame, noArray(), keypoints2, descriptors2);
+	curr_KPDetector->detectAndCompute(img_example, noArray(), keypoints1, descriptors1);
+	curr_KPDetector->detectAndCompute(frame, noArray(), keypoints2, descriptors2);
 
 	/* feature description */
-	Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
 	std::vector< std::vector<DMatch> > knn_matches;
-	matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+	FLANN_based_matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
 	//-- Filter matches using the Lowe's ratio test
 	const float ratio_threshold = 0.7f;
 	std::vector<DMatch> good_matches;
@@ -200,7 +264,22 @@ void update()
 	//imshow("out", *image_composite);
 
 	//-- Show detected matches
-	imshow("Good Matches & Object detection", img_matches);
+	//imshow("Good Matches & Object detection", img_matches);
+
+	// - Keypoint matching
+	imshow(WIN_SETTINGS_NAME, img_matches);
+}
+
+void callback(int value, void* userdata)
+{
+	cout << "------------------------------------------------------------------------------" << endl;
+	KPDetector_id = (int)KPDetector_value;
+	curr_KPDetector = setKPDetector(KPDetector_id);
+	cout << "> Keypoints Detector | " << KPDetector_name << endl;
+
+	descriptor_matcher_id = (int)descriptor_matcher_value;
+	curr_descriptor_matcher = setDescriptorMatcher(descriptor_matcher_id);
+	cout << "> Descriptor Matcher | " << descriptor_matcher_name << endl;
 }
 
 //-----------------------------------------------------------------------------
