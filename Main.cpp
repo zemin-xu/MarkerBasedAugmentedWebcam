@@ -36,7 +36,6 @@ Ptr<Feature2D> curr_KPDetector;
 /* Keypoint detector trackbar */
 const char* KPDetector_name = "KPDetector";
 int KPDetector_max_value = 2;
-int KPDetector_value;
 int KPDetector_id = 0;
 
 Ptr<Feature2D> setKPDetector(int id)
@@ -65,7 +64,6 @@ Ptr<DescriptorMatcher> curr_descriptor_matcher;
 /* Descriptor Matcher trackbar */
 const char* descriptor_matcher_name = "Descriptor Matcher";
 int descriptor_matcher_max_value = 3;
-int descriptor_matcher_value;
 int descriptor_matcher_id = 0;
 
 Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
@@ -185,12 +183,10 @@ void createGUI()
 	namedWindow(WIN_SETTINGS_NAME, WINDOW_AUTOSIZE);
 
 	/* Keypoint Detector */
-	KPDetector_value = (int)KPDetector_id;
-	createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_value,
+	createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_id,
 		KPDetector_max_value, (TrackbarCallback)callback);
 	/* Descriptor Matcher */
-	descriptor_matcher_value = (int)descriptor_matcher_id;
-	createTrackbar(descriptor_matcher_name, WIN_SETTINGS_NAME, &descriptor_matcher_value,
+	createTrackbar(descriptor_matcher_name, WIN_SETTINGS_NAME, &descriptor_matcher_id,
 		descriptor_matcher_max_value, (TrackbarCallback)callback);
 }
 
@@ -273,11 +269,9 @@ void update()
 void callback(int value, void* userdata)
 {
 	cout << "------------------------------------------------------------------------------" << endl;
-	KPDetector_id = (int)KPDetector_value;
 	curr_KPDetector = setKPDetector(KPDetector_id);
 	cout << "> Keypoints Detector | " << KPDetector_name << endl;
 
-	descriptor_matcher_id = (int)descriptor_matcher_value;
 	curr_descriptor_matcher = setDescriptorMatcher(descriptor_matcher_id);
 	cout << "> Descriptor Matcher | " << descriptor_matcher_name << endl;
 }
