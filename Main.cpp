@@ -183,6 +183,7 @@ void createGUI()
 	namedWindow(WIN_SETTINGS_NAME, WINDOW_AUTOSIZE);
 
 	/* Keypoint Detector */
+
 	createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_id,
 		KPDetector_max_value, (TrackbarCallback)callback);
 	/* Descriptor Matcher */
