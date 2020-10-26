@@ -84,7 +84,7 @@ Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 	case 2:
 		descriptor_matcher_name = "BruteForce-Hamming";
 		return BFHamming_matcher;
-	case 3: // KAZE
+	case 3:
 		descriptor_matcher_name = "BruteForce (L1 norm)";
 		return BFL1_matcher;
 	}
@@ -201,10 +201,19 @@ void update()
 	drawKeypoints(img_sample, keypoints_sample, img_out[0], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	drawKeypoints(img_target, keypoints_frame, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
+	/* descriptor conversion */
+	descriptors_sample.convertTo(descriptors_sample, CV_32F);
+	descriptors_frame.convertTo(descriptors_frame, CV_32F);
+
 	/* descriptor matching */
-	/*
-	FLANN_based_matcher->knnMatch(descriptors_sample, descriptors_frame, knn_matches, k);
+	curr_descriptor_matcher->match(descriptors_sample, descriptors_frame, matches);
+
+	drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, matches, img_matches, Scalar::all(-1),
+		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+	//curr_descriptor_matcher->knnMatch(descriptors_sample, descriptors_frame, knn_matches, k);
 	//-- Filter matches using the Lowe's ratio test
+	/*
 	const float ratio_threshold = 0.7f;
 	std::vector<DMatch> good_matches;
 	for (size_t i = 0; i < knn_matches.size(); i++)
@@ -219,9 +228,9 @@ void update()
 		*/
 
 		//-- Show detected (drawn) keypoints
-	imshow(WIN_SETTINGS_NAME, frame);
+	//imshow(WIN_SETTINGS_NAME, frame);
 	imshow(WIN_KEYPOINTS_NAME, img_out[0]);
-	//imshow(WIN_SETTINGS_NAME, img_matches);
+	imshow(WIN_SETTINGS_NAME, img_matches);
 
 	/*homography*/
 	 //-- Localize the object
