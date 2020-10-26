@@ -201,15 +201,9 @@ void update()
 	drawKeypoints(img_sample, keypoints_sample, img_out[0], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	drawKeypoints(img_target, keypoints_frame, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-	//-- Show detected (drawn) keypoints
-	imshow(WIN_SETTINGS_NAME, frame);
-	imshow(WIN_KEYPOINTS_NAME, img_out[0]);
-	//imshow(WIN_SETTINGS_NAME, img_out[1]);
-
 	/* descriptor matching */
 	/*
-	std::vector< std::vector<DMatch> > knn_matches;
-	FLANN_based_matcher->knnMatch(descriptors1, descriptors2, knn_matches, 2);
+	FLANN_based_matcher->knnMatch(descriptors_sample, descriptors_frame, knn_matches, k);
 	//-- Filter matches using the Lowe's ratio test
 	const float ratio_threshold = 0.7f;
 	std::vector<DMatch> good_matches;
@@ -220,60 +214,63 @@ void update()
 			good_matches.push_back(knn_matches[i][0]);
 		}
 	}
-	//-- Draw matches
-	Mat img_matches;
-	drawMatches(img_sample, keypoints1, frame, keypoints2, good_matches, img_matches, Scalar::all(-1),
+	drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, good_matches, img_matches, Scalar::all(-1),
 		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 		*/
 
-		/*homography*/
-		 //-- Localize the object
-		/*
-		std::vector<Point2f> obj;
-		std::vector<Point2f> scene;
-		for (size_t i = 0; i < good_matches.size(); i++)
-		{
-			//-- Get the keypoints from the good matches
-			obj.push_back(keypoints1[good_matches[i].queryIdx].pt);
-			scene.push_back(keypoints2[good_matches[i].trainIdx].pt);
-		}
+		//-- Show detected (drawn) keypoints
+	imshow(WIN_SETTINGS_NAME, frame);
+	imshow(WIN_KEYPOINTS_NAME, img_out[0]);
+	//imshow(WIN_SETTINGS_NAME, img_matches);
 
-		Mat H = findHomography(obj, scene, RANSAC);
-		warpPerspective(img_sample, frame, H, img_sample.size());
-		//-- Get the corners from the image_1 ( the object to be "detected" )
+	/*homography*/
+	 //-- Localize the object
+	/*
+	std::vector<Point2f> obj;
+	std::vector<Point2f> scene;
+	for (size_t i = 0; i < good_matches.size(); i++)
+	{
+		//-- Get the keypoints from the good matches
+		obj.push_back(keypoints1[good_matches[i].queryIdx].pt);
+		scene.push_back(keypoints2[good_matches[i].trainIdx].pt);
+	}
 
+	Mat H = findHomography(obj, scene, RANSAC);
+	warpPerspective(img_sample, frame, H, img_sample.size());
 	//-- Get the corners from the image_1 ( the object to be "detected" )
-		std::vector<Point2f> obj_corners(4);
-		obj_corners[0] = Point2f(0, 0);
-		obj_corners[1] = Point2f((float)img_sample.cols, 0);
-		obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
-		obj_corners[3] = Point2f(0, (float)img_sample.rows);
-		std::vector<Point2f> scene_corners(4);
-		perspectiveTransform(obj_corners, scene_corners, H);
-		//-- Draw lines between the corners (the mapped object in the scene - image_2 )
-		line(img_matches, scene_corners[0] + Point2f((float)img_sample.cols, 0),
-			scene_corners[1] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-		line(img_matches, scene_corners[1] + Point2f((float)img_sample.cols, 0),
-			scene_corners[2] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-		line(img_matches, scene_corners[2] + Point2f((float)img_sample.cols, 0),
-			scene_corners[3] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-		line(img_matches, scene_corners[3] + Point2f((float)img_sample.cols, 0),
-			scene_corners[0] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-			*/
 
-			//Mat* the_image = &img_target;
+//-- Get the corners from the image_1 ( the object to be "detected" )
+	std::vector<Point2f> obj_corners(4);
+	obj_corners[0] = Point2f(0, 0);
+	obj_corners[1] = Point2f((float)img_sample.cols, 0);
+	obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
+	obj_corners[3] = Point2f(0, (float)img_sample.rows);
+	std::vector<Point2f> scene_corners(4);
+	perspectiveTransform(obj_corners, scene_corners, H);
+	//-- Draw lines between the corners (the mapped object in the scene - image_2 )
+	line(img_matches, scene_corners[0] + Point2f((float)img_sample.cols, 0),
+		scene_corners[1] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[1] + Point2f((float)img_sample.cols, 0),
+		scene_corners[2] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[2] + Point2f((float)img_sample.cols, 0),
+		scene_corners[3] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
+	line(img_matches, scene_corners[3] + Point2f((float)img_sample.cols, 0),
+		scene_corners[0] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
+		*/
 
-			// Concatenate source and fused images horizontally
-			//hconcat(img_sample, *the_image, *image_composite);
+		//Mat* the_image = &img_target;
 
-			// Display result
-			//imshow("out", *image_composite);
+		// Concatenate source and fused images horizontally
+		//hconcat(img_sample, *the_image, *image_composite);
 
-			//-- Show detected matches
-			//imshow("Good Matches & Object detection", img_matches);
+		// Display result
+		//imshow("out", *image_composite);
 
-			// - Keypoint matching
-		//imshow(WIN_SETTINGS_NAME, img_matches);
+		//-- Show detected matches
+		//imshow("Good Matches & Object detection", img_matches);
+
+		// - Keypoint matching
+	//imshow(WIN_SETTINGS_NAME, img_matches);
 }
 
 void callback(int value, void* userdata)
