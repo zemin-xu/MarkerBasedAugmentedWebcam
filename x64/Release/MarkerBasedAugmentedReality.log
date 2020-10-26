@@ -1,7 +1,9 @@
 ﻿  Main.cpp
+C:\Users\Zemin XU\Documents\OpenCVProjects\MarkerBasedAugmentedReality\Main.cpp(212,33): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\Zemin XU\Documents\OpenCVProjects\MarkerBasedAugmentedReality\Main.cpp(213,29): warning C4305: 'initializing': truncation from 'double' to 'float'
   Generating code
-  2 of 441 functions ( 0.5%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    7 functions had inline decision re-evaluated but remain unchanged
+  127 of 486 functions (26.1%) were compiled, the rest were copied from previous compilation.
+    47 functions were new in current compilation
+    15 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   MarkerBasedAugmentedReality.vcxproj -> C:\Users\Zemin XU\Documents\OpenCVProjects\MarkerBasedAugmentedReality\x64\Release\MarkerBasedAugmentedReality.exe

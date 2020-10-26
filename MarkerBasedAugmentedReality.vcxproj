@@ -28,6 +28,9 @@
     <ClInclude Include="ImageUtilities.h" />
     <ClInclude Include="KeypointUtilities.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ReadMe.md" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

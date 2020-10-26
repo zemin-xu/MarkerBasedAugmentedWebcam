@@ -31,6 +31,7 @@ vector<KeyPoint> keypoints_sample, keypoints_frame;
 int k = 2; // k nearest neighbor
 vector<vector<DMatch>> knn_matches;
 vector<DMatch> matches;
+vector<DMatch> filtered_matches;
 
 /* pointers to feature extractor */
 Ptr<AKAZE> akaze;
@@ -206,24 +207,29 @@ void update()
 	descriptors_frame.convertTo(descriptors_frame, CV_32F);
 
 	/* descriptor matching */
-	curr_descriptor_matcher->match(descriptors_sample, descriptors_frame, matches);
+	//curr_descriptor_matcher->match(descriptors_sample, descriptors_frame, matches);
+
+	int nb_matches = matches.size();
+	float goodMatchRatio = 0.15;
+	int nb_good_matches = (int)(nb_matches * goodMatchRatio);
+	// Sort matches by score
+	sort(matches.begin(), matches.end());
+	// Filter out matches with large scores
+	matches.erase(matches.begin() + nb_good_matches, matches.end());
 
 	drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, matches, img_matches, Scalar::all(-1),
 		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-
-	//curr_descriptor_matcher->knnMatch(descriptors_sample, descriptors_frame, knn_matches, k);
-	//-- Filter matches using the Lowe's ratio test
-	/*
+	// -- Filter matches using the Lowe's ratio test
+		/*
 	const float ratio_threshold = 0.7f;
-	std::vector<DMatch> good_matches;
 	for (size_t i = 0; i < knn_matches.size(); i++)
 	{
 		if (knn_matches[i][0].distance < ratio_threshold * knn_matches[i][1].distance)
 		{
-			good_matches.push_back(knn_matches[i][0]);
+			filtered_matches.push_back(knn_matches[i][0]);
 		}
 	}
-	drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, good_matches, img_matches, Scalar::all(-1),
+	drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, filtered_matches, img_matches, Scalar::all(-1),
 		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 		*/
 
@@ -237,11 +243,11 @@ void update()
 	/*
 	std::vector<Point2f> obj;
 	std::vector<Point2f> scene;
-	for (size_t i = 0; i < good_matches.size(); i++)
+	for (size_t i = 0; i < filtered_matches.size(); i++)
 	{
 		//-- Get the keypoints from the good matches
-		obj.push_back(keypoints1[good_matches[i].queryIdx].pt);
-		scene.push_back(keypoints2[good_matches[i].trainIdx].pt);
+		obj.push_back(keypoints1[filtered_matches[i].queryIdx].pt);
+		scene.push_back(keypoints2[filtered_matches[i].trainIdx].pt);
 	}
 
 	Mat H = findHomography(obj, scene, RANSAC);
