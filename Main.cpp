@@ -7,7 +7,6 @@
 #include "opencv2/flann.hpp"
 #include "opencv2/calib3d.hpp"
 #include "ImageUtilities.h"
-#include "KeypointUtilities.h"
 
 using namespace std;
 using namespace cv;
@@ -33,7 +32,6 @@ vector<KeyPoint> keypoints_sample, keypoints_frame;
 int k = 2; // k nearest neighbor
 vector<vector<DMatch>> knn_matches;
 vector<DMatch> matches;
-vector<DMatch> filtered_matches;
 
 vector<Point2f> obj_corners(4);
 vector<Point2f> scene_corners(4);
@@ -116,11 +114,9 @@ void matchesFiltering(int id)
 		{
 			if (knn_matches[i][0].distance < ratio_threshold * knn_matches[i][1].distance)
 			{
-				filtered_matches.push_back(knn_matches[i][0]);
+				matches.push_back(knn_matches[i][0]);
 			}
 		}
-		drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, filtered_matches, img_matches, Scalar::all(-1),
-			Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 	}
 		   break;
 	case 1: {
@@ -135,9 +131,6 @@ void matchesFiltering(int id)
 		sort(matches.begin(), matches.end());
 		// Filter out matches with large scores
 		matches.erase(matches.begin() + nb_good_matches, matches.end());
-
-		drawMatches(img_sample, keypoints_sample, frame, keypoints_frame, matches, img_filtered_matches, Scalar::all(-1),
-			Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 	}
 		  break;
 	}
@@ -149,6 +142,7 @@ void init();
 void createGUI();
 void update();
 void callback(int value, void* userdata);
+void showResult();
 void clearVectors();
 int usage(char* prgname);
 
@@ -252,7 +246,7 @@ void update()
 	curr_KPDetector->detectAndCompute(img_sample, noArray(), keypoints_sample, descriptors_sample);
 	curr_KPDetector->detectAndCompute(frame_gray, noArray(), keypoints_frame, descriptors_frame);
 
-	//drawKeypoints(img_sample, keypoints_sample, img_out[0], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(img_sample, keypoints_sample, img_keypoints, KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	//drawKeypoints(frame_gray, keypoints_frame, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
 	/* descriptor conversion */
@@ -261,59 +255,43 @@ void update()
 
 	/* descriptor matching */
 	matchesFiltering(matches_filter_id);
+	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
+		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
-	//imshow(WIN_SETTINGS_NAME, img_matches);
+	/* show result */
+	showResult();
 
 	/*homography*/
-	 //-- Localize the object
+	/*
 	std::vector<Point2f> obj;
 	std::vector<Point2f> scene;
 	for (size_t i = 0; i < filtered_matches.size(); i++)
 	{
-		//-- Get the keypoints from the good matches
 		obj.push_back(keypoints_sample[filtered_matches[i].queryIdx].pt);
 		scene.push_back(keypoints_frame[filtered_matches[i].trainIdx].pt);
 	}
 
-	Mat H = findHomography(obj, scene, RANSAC);
-	warpPerspective(img_sample, frame_gray, H, img_sample.size());
-	//-- Get the corners from the image_1 ( the object to be "detected" )
+	// Overlay edge map on original image
+	//overlay_uchar_image(*the_image_in, image_out,
+	//	edge_color, edge_color3, &image_overlay);
+	double alpha = 0.5;
+	double beta = 1 - alpha;
+	addWeighted(img_sample, alpha, img_target, beta, 0.0, img_composite);
 
-//-- Get the corners from the image_1 ( the object to be "detected" )
+	//-- Get the corners from the image_1 ( the object to be "detected" )
 	obj_corners[0] = Point2f(0, 0);
 	obj_corners[1] = Point2f((float)img_sample.cols, 0);
 	obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
 	obj_corners[3] = Point2f(0, (float)img_sample.rows);
 
+	Mat H = findHomography(obj, scene, RANSAC);
+	warpPerspective(img_composite, frame_gray, H, img_composite.size());
 	perspectiveTransform(obj_corners, scene_corners, H);
+	imshow("Warped Image", frame_gray);
 
-	//-- Draw lines between the corners (the mapped object in the scene - image_2 )
-	/*
-	line(img_matches, scene_corners[0] + Point2f((float)img_sample.cols, 0),
-		scene_corners[1] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-	line(img_matches, scene_corners[1] + Point2f((float)img_sample.cols, 0),
-		scene_corners[2] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-	line(img_matches, scene_corners[2] + Point2f((float)img_sample.cols, 0),
-		scene_corners[3] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
-	line(img_matches, scene_corners[3] + Point2f((float)img_sample.cols, 0),
-		scene_corners[0] + Point2f((float)img_sample.cols, 0), Scalar(0, 255, 0), 4);
 	*/
-	//addWeighted(img_sample, 0.5, img_target, 0.5, 0, img_composite);
-	// Concatenate source and fused images horizontally
-	//hconcat(img_sample, img_target, img_composite);
 
-	//draw_quadrilateral(scene_corners, frame_gray.cols,
-	//	KPColor, 1, img_matches);
-	// Display result
-	//imshow("out", *image_composite);
-
-	//imshow("Good Matches ", img_composite);
-	imshow("Good Matches & Object detection", img_matches);
-
-	H.release();
-
-	// - Keypoint matching
-//imshow(WIN_SETTINGS_NAME, img_matches);
+	//H.release();
 }
 
 void callback(int value, void* userdata)
@@ -328,12 +306,18 @@ void callback(int value, void* userdata)
 	cout << "> Matches Filtering  | " << matches_filter_name << endl;
 }
 
+void showResult()
+{
+	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
+	imshow(WIN_MATCHES_NAME, img_matches);
+}
+
 void clearVectors()
 {
 	keypoints_sample.clear();
 	keypoints_frame.clear();
 
-	filtered_matches.clear();
+	matches.clear();
 	for (int i = 0; i < knn_matches.size(); i++)
 	{
 		knn_matches[i].clear();

@@ -20,13 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ImageUtilities.cpp" />
-    <ClCompile Include="KeypointUtilities.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="VideoLaplacianEdgeDetection.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageUtilities.h" />
-    <ClInclude Include="KeypointUtilities.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.md" />

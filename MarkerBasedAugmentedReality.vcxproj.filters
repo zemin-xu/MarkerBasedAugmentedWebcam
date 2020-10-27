@@ -18,9 +18,6 @@
     <ClCompile Include="ImageUtilities.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="KeypointUtilities.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="VideoLaplacianEdgeDetection.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -30,9 +27,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImageUtilities.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="KeypointUtilities.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
