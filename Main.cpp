@@ -8,6 +8,9 @@
 #include "opencv2/calib3d.hpp"
 #include "ImageUtilities.h"
 
+// opencv_contrib headers
+#include <opencv2/xfeatures2d.hpp>
+
 using namespace std;
 using namespace cv;
 
@@ -43,12 +46,15 @@ Scalar KPColor = Scalar::all(-1);
 Ptr<AKAZE> akaze;
 Ptr<ORB> orb;
 Ptr<SIFT> sift;
+Ptr<FastFeatureDetector> fast;
+Ptr<xfeatures2d::SURF> surf;
+
 Ptr<Feature2D> curr_KPDetector;
 
 /* Keypoint detector trackbar */
 const char* KPDetector_name = "KPDetector";
-int KPDetector_max_value = 2;
-int KPDetector_id = 0;
+int KPDetector_max_value = 4;
+int KPDetector_id = 4;
 
 Ptr<Feature2D> setKPDetector(int id)
 {
@@ -63,6 +69,12 @@ Ptr<Feature2D> setKPDetector(int id)
 	case 2:
 		KPDetector_name = "ORB";
 		return orb;
+	case 3:
+		KPDetector_name = "FAST";
+		return fast;
+	case 4:
+		KPDetector_name = "SURF";
+		return surf;
 	}
 }
 
@@ -214,6 +226,8 @@ void init()
 	akaze = AKAZE::create();
 	orb = ORB::create();
 	sift = SIFT::create();
+	fast = FastFeatureDetector::create();
+	surf = xfeatures2d::SURF::create();
 
 	/* Descriptor Matcher pointers creation */
 	BFL2_matcher = DescriptorMatcher::create("BruteForce");
