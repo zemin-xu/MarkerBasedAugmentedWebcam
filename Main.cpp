@@ -14,13 +14,13 @@ using namespace cv;
 const char* WIN_KEYPOINTS_NAME = "Keypoints";
 const char* WIN_MATCHES_NAME = "Matches";
 const char* WIN_SETTINGS_NAME = "Settings";
-const char* WIN_OUT_NAME = "Output";
+const char* WIN_AUGMENTATION_NAME = "Augmentation";
 
 char  input_img_paths[2][256];
 
 Mat img_in[2], img_gray[2], img_out[2];
 Mat img_sample, img_target;
-Mat img_keypoints, img_matches, img_filtered_matches; // intemediare images
+Mat img_keypoints, img_matches; // intemediare images
 Mat frame; // realtime webcam frame
 Mat frame_gray, frame_gray32f, frame_smoothed, frame_overlay;
 Mat img_composite;
