@@ -276,13 +276,12 @@ void update()
 	showResult();
 
 	/*homography*/
-	/*
-	std::vector<Point2f> obj;
-	std::vector<Point2f> scene;
-	for (size_t i = 0; i < filtered_matches.size(); i++)
+	vector<Point2f> obj;
+	vector<Point2f> scene;
+	for (size_t i = 0; i < matches.size(); i++)
 	{
-		obj.push_back(keypoints_sample[filtered_matches[i].queryIdx].pt);
-		scene.push_back(keypoints_frame[filtered_matches[i].trainIdx].pt);
+		obj.push_back(keypoints_sample[matches[i].queryIdx].pt);
+		scene.push_back(keypoints_frame[matches[i].trainIdx].pt);
 	}
 
 	// Overlay edge map on original image
@@ -298,12 +297,17 @@ void update()
 	obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
 	obj_corners[3] = Point2f(0, (float)img_sample.rows);
 
-	Mat H = findHomography(obj, scene, RANSAC);
-	warpPerspective(img_composite, frame_gray, H, img_composite.size());
-	perspectiveTransform(obj_corners, scene_corners, H);
-	imshow("Warped Image", frame_gray);
+	if (obj.size() != 0 && scene.size() != 0) {
+		Mat H = findHomography(obj, scene, RANSAC);
+		//warpPerspective(img_sample, img_target, H, img_sample.size());
 
-	*/
+		perspectiveTransform(obj_corners, scene_corners, H);
+
+		Mat img1_warp;
+		warpPerspective(img_composite, img1_warp, H, img_sample.size());
+
+		imshow("Good Matches & Object detection", img1_warp);
+	}
 
 	//H.release();
 }

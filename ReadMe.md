@@ -25,7 +25,22 @@ But it costs more time than SURF(about 3 times).
 ## FAST
 It is several times faster than other existing corner detectors.
 But it is not robust to high levels of noise. It is dependent on a threshold.
+The **detectAndCompute** is not implemented for this feature detector.
 
+## BRIEF
+BRIEF is only a feature descriptor, not a detector.
+SIFT uses 128-dim vector for descriptors. SURF also takes minimum of 256 bytes (for 64-dim). 
+These floating-point data can be converted as binary string and match features using Hamming distance(faster).
+
+## ORB Oriented FAST and Rotated BRIEF
+ORB is basically a fusion of FAST keypoint detector and BRIEF descriptor with many modifications to enhance the performance,
+with rotation invariant.
+The paper says ORB is much faster than SURF and SIFT and ORB descriptor works better than SURF.
+It has a number of optional parameters. Most useful ones are nFeatures which denotes maximum number of features to be retained (by default 500),
+scoreType which denotes whether Harris score or FAST score to rank the features (by default, Harris score) etc. Another parameter,
+WTA_K decides number of points that produce each element of the oriented BRIEF descriptor. 
+By default it is two, ie selects two points at a time. In that case, for matching, NORM_HAMMING distance is used.
+If WTA_K is 3 or 4, which takes 3 or 4 points to produce BRIEF descriptor, then matching distance is defined by NORM_HAMMING2.
 # references
 opencv Feature Detection and Description
 https://docs.opencv.org/3.4/db/d27/tutorial_py_table_of_contents_feature2d.html
