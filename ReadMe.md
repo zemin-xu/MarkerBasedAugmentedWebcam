@@ -44,3 +44,31 @@ If WTA_K is 3 or 4, which takes 3 or 4 points to produce BRIEF descriptor, then 
 # references
 opencv Feature Detection and Description
 https://docs.opencv.org/3.4/db/d27/tutorial_py_table_of_contents_feature2d.html
+
+
+short report, motivating modelling choices for every building block based on experimental
+and/or theoretical arguments, and discussing performances w.r.t. input marker features, view
+point changes, lighting variations, occlusions and background complexity.
+
+# Marker-based Augmented Reality model report
+
+## Problem statement
+In this project, I need to design and implement an OpenCV solution.
+It relies on keypoint-based image descriptor to match between the image of a structured planar marker and its instance in webcam stream.
+In this project, I choose a book cover with rich keypoints and another with only a few keypoints to test.
+
+
+https://arxiv.org/ftp/arxiv/papers/1710/1710.02726.pdf
+
+
+	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
+	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
+	printf("matching numbers: %d.\n", (int)matches.size());
+	printf("matching rate: %f.\n", (float)matches.size() / (float)keypoints_sample.size());
+	percentage.push_back((float)matches.size() / (float)keypoints_sample.size());
+
+	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
+		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+
+	

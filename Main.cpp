@@ -1,4 +1,5 @@
 #include <iostream>
+#include <time.h>
 #include "opencv2/core.hpp"
 #include <opencv2/videoio.hpp>
 #include "opencv2/highgui.hpp"
@@ -8,11 +9,13 @@
 #include "opencv2/calib3d.hpp"
 #include "ImageUtilities.h"
 
-// opencv_contrib headers
 #include <opencv2/xfeatures2d.hpp>
 
 using namespace std;
 using namespace cv;
+
+vector<float> percentage;
+float average;
 
 const char* WIN_KEYPOINTS_NAME = "Keypoints";
 const char* WIN_MATCHES_NAME = "Matches";
@@ -46,7 +49,7 @@ Scalar KPColor = Scalar::all(-1);
 Ptr<AKAZE> akaze;
 Ptr<ORB> orb;
 Ptr<SIFT> sift;
-Ptr<FastFeatureDetector> fast;
+Ptr<BRISK> brisk;
 Ptr<xfeatures2d::SURF> surf;
 
 Ptr<Feature2D> curr_KPDetector;
@@ -54,7 +57,7 @@ Ptr<Feature2D> curr_KPDetector;
 /* Keypoint detector trackbar */
 const char* KPDetector_name = "KPDetector";
 int KPDetector_max_value = 4;
-int KPDetector_id = 4;
+int KPDetector_id = 3;
 
 Ptr<Feature2D> setKPDetector(int id)
 {
@@ -64,55 +67,55 @@ Ptr<Feature2D> setKPDetector(int id)
 		KPDetector_name = "SIFT";
 		return sift;
 	case 1:
-		KPDetector_name = "AKAZE";
-		return akaze;
+		KPDetector_name = "SURF";
+		return surf;
 	case 2:
 		KPDetector_name = "ORB";
 		return orb;
 	case 3:
-		KPDetector_name = "FAST";
-		return fast;
-	case 4:
-		KPDetector_name = "SURF";
-		return surf;
+		KPDetector_name = "AKAZE";
+		return akaze;
+	case 5:
+		KPDetector_name = "BRISK";
+		return brisk;
 	}
 }
 
 /* pointers to Descriptor Matcher */
-Ptr<DescriptorMatcher> BFL1_matcher;       // - BruteForce (L1 norm)
-Ptr<DescriptorMatcher> BFL2_matcher;       // - BruteForce (L2 norm)
-Ptr<DescriptorMatcher> BFHamming_matcher;  // - BruteForce-Hamming
-Ptr<DescriptorMatcher> FLANN_based_matcher;
+Ptr<BFMatcher> BFL1_matcher;       // - BruteForce (L1 norm)
+Ptr<BFMatcher> BFL2_matcher;       // - BruteForce (L2 norm)
+Ptr<BFMatcher> BFHamming_matcher;  // - BruteForce-Hamming
+Ptr<FlannBasedMatcher> FLANN_based_matcher;
 Ptr<DescriptorMatcher> curr_descriptor_matcher;
 
 /* Descriptor Matcher trackbar */
 const char* descriptor_matcher_name = "Descriptor Matcher";
 int descriptor_matcher_max_value = 3;
-int descriptor_matcher_id = 0;
+int descriptor_matcher_id = 3;
 
 Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 {
 	switch (id) {
 	case 0:
 	default:
-		descriptor_matcher_name = "FLANN based";
+		descriptor_matcher_name = "FLANN based"; // suitable for SURF
 		return FLANN_based_matcher;
 	case 1:
-		descriptor_matcher_name = "BruteForce (L2 norm)";
-		return BFL2_matcher;
-	case 2:
-		descriptor_matcher_name = "BruteForce-Hamming";
-		return BFHamming_matcher;
-	case 3:
 		descriptor_matcher_name = "BruteForce (L1 norm)";
 		return BFL1_matcher;
+	case 2:
+		descriptor_matcher_name = "BruteForce (L2 norm)";
+		return BFL2_matcher;
+	case 3:
+		descriptor_matcher_name = "BruteForce-Hamming"; // suitable for ORB
+		return BFHamming_matcher;
 	}
 }
 
 /* Matches Filter trackbar */
 const char* matches_filter_name = "Matches Filter";
-int matches_filter_max_value = 1;
-int matches_filter_id = 0;
+int matches_filter_max_value = 2;
+int matches_filter_id = 1;
 
 void matchesFiltering(int id)
 {
@@ -145,8 +148,16 @@ void matchesFiltering(int id)
 		matches.erase(matches.begin() + nb_good_matches, matches.end());
 	}
 		  break;
+	case 2:
+		matches_filter_name = "None";
+		break;
 	}
 }
+
+/* Opacity of Augmented image */
+const char* opacity_name = "Opacity";
+int opacity_max_value = 255;
+int opacity_value = 128;
 
 // signature of functions
 void parseInput(int argc, char* argv[]);
@@ -174,6 +185,14 @@ int main(int argc, char* argv[])
 		if (waitKey(30) >= 0)
 			break;
 	}
+
+	float total = 0;
+	for (int i = 0; i < percentage.size(); i++)
+	{
+		total += percentage[i];
+	}
+	average = total / percentage.size();
+	printf("average rate: %f\n", average);
 
 	destroyAllWindows();
 
@@ -226,13 +245,14 @@ void init()
 	akaze = AKAZE::create();
 	orb = ORB::create();
 	sift = SIFT::create();
-	fast = FastFeatureDetector::create();
+	brisk = BRISK::create();
 	surf = xfeatures2d::SURF::create();
 
 	/* Descriptor Matcher pointers creation */
-	BFL2_matcher = DescriptorMatcher::create("BruteForce");
-	BFHamming_matcher = DescriptorMatcher::create("BruteForce-Hamming");
-	FLANN_based_matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
+	BFL1_matcher = BFMatcher::create(NORM_L1);
+	BFL2_matcher = BFMatcher::create(NORM_L2);
+	BFHamming_matcher = BFMatcher::create(NORM_HAMMING);
+	FLANN_based_matcher = FlannBasedMatcher::create();
 }
 
 void createGUI()
@@ -248,6 +268,9 @@ void createGUI()
 	/* Matches Filter */
 	createTrackbar(matches_filter_name, WIN_SETTINGS_NAME, &matches_filter_id,
 		matches_filter_max_value, (TrackbarCallback)callback);
+	/* Opacity */
+	createTrackbar(opacity_name, WIN_SETTINGS_NAME, &opacity_value,
+		opacity_max_value, (TrackbarCallback)callback);
 }
 
 void update()
@@ -261,55 +284,64 @@ void update()
 	curr_KPDetector->detectAndCompute(frame_gray, noArray(), keypoints_frame, descriptors_frame);
 
 	drawKeypoints(img_sample, keypoints_sample, img_keypoints, KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	//drawKeypoints(frame_gray, keypoints_frame, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(frame_gray, keypoints_frame, img_out[1], KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
 	/* descriptor conversion */
-	descriptors_sample.convertTo(descriptors_sample, CV_32F);
-	descriptors_frame.convertTo(descriptors_frame, CV_32F);
+	if (descriptor_matcher_id == 0) // for FLANN matcher
+	{
+		if (KPDetector_id == 2) // for ORB descriptors
+		{
+			descriptors_sample.convertTo(descriptors_sample, CV_32F);
+			descriptors_frame.convertTo(descriptors_frame, CV_32F);
+		}
+	}
+
+	clock_t t;
+	t = clock();
 
 	/* descriptor matching */
 	matchesFiltering(matches_filter_id);
+
+	t = clock() - t;
+	printf("%s descriptors matching took me %d clocks (%f seconds).\n", KPDetector_name, t, ((float)t) / CLOCKS_PER_SEC);
+	printf("The matcher is %s.\n", descriptor_matcher_name);
+	printf("The matcher filter is %s.\n", matches_filter_name);
+	printf("keypoints1 numbers: %d.\n", (int)keypoints_sample.size());
+	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
+	printf("matching numbers: %d.\n", (int)matches.size());
+	printf("matching rate: %f.\n", (float)matches.size() / keypoints_frame.size());
+	percentage.push_back((float)matches.size() / (float)keypoints_frame.size());
 	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
-		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
 	/* show result */
 	showResult();
 
-	/*homography*/
-	vector<Point2f> obj;
-	vector<Point2f> scene;
-	for (size_t i = 0; i < matches.size(); i++)
-	{
-		obj.push_back(keypoints_sample[matches[i].queryIdx].pt);
-		scene.push_back(keypoints_frame[matches[i].trainIdx].pt);
-	}
+	///*homography*/
+	//vector<Point2f> obj;
+	//vector<Point2f> scene;
+	//for (size_t i = 0; i < matches.size(); i++)
+	//{
+	//	obj.push_back(keypoints_sample[matches[i].queryIdx].pt);
+	//	scene.push_back(keypoints_frame[matches[i].trainIdx].pt);
+	//}
 
-	// Overlay edge map on original image
-	//overlay_uchar_image(*the_image_in, image_out,
-	//	edge_color, edge_color3, &image_overlay);
-	double alpha = 0.5;
-	double beta = 1 - alpha;
-	addWeighted(img_sample, alpha, img_target, beta, 0.0, img_composite);
+	////-- Get the corners from the image_1 ( the object to be "detected" )
+	//obj_corners[0] = Point2f(0, 0);
+	//obj_corners[1] = Point2f((float)img_sample.cols, 0);
+	//obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
+	//obj_corners[3] = Point2f(0, (float)img_sample.rows);
 
-	//-- Get the corners from the image_1 ( the object to be "detected" )
-	obj_corners[0] = Point2f(0, 0);
-	obj_corners[1] = Point2f((float)img_sample.cols, 0);
-	obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
-	obj_corners[3] = Point2f(0, (float)img_sample.rows);
+	//if (obj.size() != 0 && scene.size() != 0) {
+	//	Mat H = findHomography(obj, scene, RANSAC);
+	//	warpPerspective(img_target, img_composite, H, img_composite.size(), 0);
 
-	if (obj.size() != 0 && scene.size() != 0) {
-		Mat H = findHomography(obj, scene, RANSAC);
-		//warpPerspective(img_sample, img_target, H, img_sample.size());
+	//	double alpha = (double)opacity_value / (double)opacity_max_value;
+	//	double beta = 1 - alpha;
+	//	addWeighted(img_composite, alpha, frame_gray, beta, 0.0, img_composite);
 
-		perspectiveTransform(obj_corners, scene_corners, H);
-
-		Mat img1_warp;
-		warpPerspective(img_composite, img1_warp, H, img_sample.size());
-
-		imshow("Good Matches & Object detection", img1_warp);
-	}
-
-	//H.release();
+	//	imshow("Good Matches & Object detection", img_composite);
+	//}
 }
 
 void callback(int value, void* userdata)
@@ -321,13 +353,14 @@ void callback(int value, void* userdata)
 	curr_descriptor_matcher = setDescriptorMatcher(descriptor_matcher_id);
 	cout << "> Descriptor Matcher | " << descriptor_matcher_name << endl;
 
+	matchesFiltering(matches_filter_id);
 	cout << "> Matches Filtering  | " << matches_filter_name << endl;
 }
 
 void showResult()
 {
-	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
-	imshow(WIN_MATCHES_NAME, img_matches);
+	//imshow(WIN_KEYPOINTS_NAME, img_keypoints);
+	imshow(WIN_SETTINGS_NAME, img_matches);
 }
 
 void clearVectors()
@@ -351,6 +384,48 @@ int usage(char* prgname)
 	cout << "Usage: " << prgname << " ";
 	cout << "[-i {image file}]" << endl;
 	exit(-1);
+}
+
+void KPTests()
+{
+	/*
+	clock_t t;
+	t = clock();
+	printf("Calculating...\n");
+
+	surf->detect(img_sample, keypoints_sample);
+
+	t = clock() - t;
+	printf("surf took me %d clocks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+	printf("keypoints numbers: %d.\n", (int)keypoints_sample.size());
+
+	sift->detect(img_sample, keypoints_sample);
+
+	t = clock() - t;
+	printf("sift took me %d clocks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+	printf("keypoints numbers: %d.\n", (int)keypoints_sample.size());
+
+	orb->detect(img_sample, keypoints_sample);
+
+	t = clock() - t;
+	printf("orb took me %d clocks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+	printf("keypoints numbers: %d.\n", (int)keypoints_sample.size());
+
+	akaze->detect(img_sample, keypoints_sample);
+
+	t = clock() - t;
+	printf("akaze took me %d clocks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+	printf("keypoints numbers: %d.\n", (int)keypoints_sample.size());
+
+	brisk->detect(img_sample, keypoints_sample);
+
+	t = clock() - t;
+	printf("brisk took me %d clocks (%f seconds).\n", t, ((float)t) / CLOCKS_PER_SEC);
+	printf("keypoints numbers: %d.\n", (int)keypoints_sample.size());
+
+	drawKeypoints(img_sample, keypoints_sample, img_keypoints, KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
+	*/
 }
 
 //-----------------------------------------------------------------------------
