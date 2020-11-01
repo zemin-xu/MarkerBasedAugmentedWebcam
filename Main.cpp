@@ -22,6 +22,8 @@ const char* WIN_MATCHES_NAME = "Matches";
 const char* WIN_SETTINGS_NAME = "Settings";
 const char* WIN_AUGMENTATION_NAME = "Augmentation";
 
+bool TEST_MODE = false; // whether all the parameters be shown
+
 char  input_img_paths[2][256];
 
 Mat img_in[2], img_gray[2], img_out[2];
@@ -57,7 +59,7 @@ Ptr<Feature2D> curr_KPDetector;
 /* Keypoint detector trackbar */
 const char* KPDetector_name = "KPDetector";
 int KPDetector_max_value = 4;
-int KPDetector_id = 3;
+int KPDetector_id = 4;
 
 Ptr<Feature2D> setKPDetector(int id)
 {
@@ -75,7 +77,7 @@ Ptr<Feature2D> setKPDetector(int id)
 	case 3:
 		KPDetector_name = "AKAZE";
 		return akaze;
-	case 5:
+	case 4:
 		KPDetector_name = "BRISK";
 		return brisk;
 	}
@@ -98,7 +100,7 @@ Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 	switch (id) {
 	case 0:
 	default:
-		descriptor_matcher_name = "FLANN based"; // suitable for SURF
+		descriptor_matcher_name = "FLANN based"; // suitable for SURF, SIFT
 		return FLANN_based_matcher;
 	case 1:
 		descriptor_matcher_name = "BruteForce (L1 norm)";
@@ -107,15 +109,15 @@ Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 		descriptor_matcher_name = "BruteForce (L2 norm)";
 		return BFL2_matcher;
 	case 3:
-		descriptor_matcher_name = "BruteForce-Hamming"; // suitable for ORB
+		descriptor_matcher_name = "BruteForce-Hamming"; // suitable for ORB, AKAZE, BRISK
 		return BFHamming_matcher;
 	}
 }
 
 /* Matches Filter trackbar */
 const char* matches_filter_name = "Matches Filter";
-int matches_filter_max_value = 2;
-int matches_filter_id = 1;
+int matches_filter_max_value = 1;
+int matches_filter_id = 0;
 
 void matchesFiltering(int id)
 {
@@ -135,12 +137,12 @@ void matchesFiltering(int id)
 	}
 		   break;
 	case 1: {
-		matches_filter_name = "score filtering";
+		matches_filter_name = "Score filtering";
 
 		curr_descriptor_matcher->match(descriptors_sample, descriptors_frame, matches);
 
 		size_t nb_matches = matches.size();
-		double goodMatchRatio = 0.15;
+		double goodMatchRatio = 0.5;
 		int nb_good_matches = (int)(nb_matches * goodMatchRatio);
 		// Sort matches by score
 		sort(matches.begin(), matches.end());
@@ -148,9 +150,6 @@ void matchesFiltering(int id)
 		matches.erase(matches.begin() + nb_good_matches, matches.end());
 	}
 		  break;
-	case 2:
-		matches_filter_name = "None";
-		break;
 	}
 }
 
@@ -185,14 +184,6 @@ int main(int argc, char* argv[])
 		if (waitKey(30) >= 0)
 			break;
 	}
-
-	float total = 0;
-	for (int i = 0; i < percentage.size(); i++)
-	{
-		total += percentage[i];
-	}
-	average = total / percentage.size();
-	printf("average rate: %f\n", average);
 
 	destroyAllWindows();
 
@@ -259,15 +250,18 @@ void createGUI()
 {
 	namedWindow(WIN_SETTINGS_NAME, WINDOW_AUTOSIZE);
 
-	/* Keypoint Detector */
-	createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_id,
-		KPDetector_max_value, (TrackbarCallback)callback);
-	/* Descriptor Matcher */
-	createTrackbar(descriptor_matcher_name, WIN_SETTINGS_NAME, &descriptor_matcher_id,
-		descriptor_matcher_max_value, (TrackbarCallback)callback);
-	/* Matches Filter */
-	createTrackbar(matches_filter_name, WIN_SETTINGS_NAME, &matches_filter_id,
-		matches_filter_max_value, (TrackbarCallback)callback);
+	if (TEST_MODE)
+	{
+		/* Keypoint Detector */
+		createTrackbar(KPDetector_name, WIN_SETTINGS_NAME, &KPDetector_id,
+			KPDetector_max_value, (TrackbarCallback)callback);
+		/* Descriptor Matcher */
+		createTrackbar(descriptor_matcher_name, WIN_SETTINGS_NAME, &descriptor_matcher_id,
+			descriptor_matcher_max_value, (TrackbarCallback)callback);
+		/* Matches Filter */
+		createTrackbar(matches_filter_name, WIN_SETTINGS_NAME, &matches_filter_id,
+			matches_filter_max_value, (TrackbarCallback)callback);
+	}
 	/* Opacity */
 	createTrackbar(opacity_name, WIN_SETTINGS_NAME, &opacity_value,
 		opacity_max_value, (TrackbarCallback)callback);
@@ -289,59 +283,47 @@ void update()
 	/* descriptor conversion */
 	if (descriptor_matcher_id == 0) // for FLANN matcher
 	{
-		if (KPDetector_id == 2) // for ORB descriptors
+		if (KPDetector_id == 2 || KPDetector_id == 0) // for ORB descriptors
 		{
 			descriptors_sample.convertTo(descriptors_sample, CV_32F);
 			descriptors_frame.convertTo(descriptors_frame, CV_32F);
 		}
 	}
 
-	clock_t t;
-	t = clock();
-
 	/* descriptor matching */
 	matchesFiltering(matches_filter_id);
-
-	t = clock() - t;
-	printf("%s descriptors matching took me %d clocks (%f seconds).\n", KPDetector_name, t, ((float)t) / CLOCKS_PER_SEC);
-	printf("The matcher is %s.\n", descriptor_matcher_name);
-	printf("The matcher filter is %s.\n", matches_filter_name);
-	printf("keypoints1 numbers: %d.\n", (int)keypoints_sample.size());
-	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
-	printf("matching numbers: %d.\n", (int)matches.size());
-	printf("matching rate: %f.\n", (float)matches.size() / keypoints_frame.size());
-	percentage.push_back((float)matches.size() / (float)keypoints_frame.size());
 	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
 		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
+	/*homography*/
+	vector<Point2f> obj;
+	vector<Point2f> scene;
+	for (size_t i = 0; i < matches.size(); i++)
+	{
+		obj.push_back(keypoints_sample[matches[i].queryIdx].pt);
+		scene.push_back(keypoints_frame[matches[i].trainIdx].pt);
+	}
+
+	//-- Get the corners from the image_1 ( the object to be "detected" )
+	obj_corners[0] = Point2f(0, 0);
+	obj_corners[1] = Point2f((float)img_sample.cols, 0);
+	obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
+	obj_corners[3] = Point2f(0, (float)img_sample.rows);
+
+	if (obj.size() != 0 && scene.size() != 0) {
+		Mat H = findHomography(obj, scene, RANSAC);
+		if (!H.empty())
+		{
+			warpPerspective(img_in[1], img_composite, H, img_composite.size(), 0);
+			double alpha = (double)opacity_value / (double)opacity_max_value;
+			double beta = 1 - alpha;
+			addWeighted(img_composite, alpha, frame, beta, 0.0, img_composite);
+			imshow("Good Matches & Object detection", img_composite);
+		}
+	}
+
 	/* show result */
 	showResult();
-
-	///*homography*/
-	//vector<Point2f> obj;
-	//vector<Point2f> scene;
-	//for (size_t i = 0; i < matches.size(); i++)
-	//{
-	//	obj.push_back(keypoints_sample[matches[i].queryIdx].pt);
-	//	scene.push_back(keypoints_frame[matches[i].trainIdx].pt);
-	//}
-
-	////-- Get the corners from the image_1 ( the object to be "detected" )
-	//obj_corners[0] = Point2f(0, 0);
-	//obj_corners[1] = Point2f((float)img_sample.cols, 0);
-	//obj_corners[2] = Point2f((float)img_sample.cols, (float)img_sample.rows);
-	//obj_corners[3] = Point2f(0, (float)img_sample.rows);
-
-	//if (obj.size() != 0 && scene.size() != 0) {
-	//	Mat H = findHomography(obj, scene, RANSAC);
-	//	warpPerspective(img_target, img_composite, H, img_composite.size(), 0);
-
-	//	double alpha = (double)opacity_value / (double)opacity_max_value;
-	//	double beta = 1 - alpha;
-	//	addWeighted(img_composite, alpha, frame_gray, beta, 0.0, img_composite);
-
-	//	imshow("Good Matches & Object detection", img_composite);
-	//}
 }
 
 void callback(int value, void* userdata)
@@ -426,6 +408,36 @@ void KPTests()
 	drawKeypoints(img_sample, keypoints_sample, img_keypoints, KPColor, DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
 	*/
+}
+
+void calculateAverage()
+{
+	float total = 0;
+	for (int i = 0; i < percentage.size(); i++)
+	{
+		total += percentage[i];
+	}
+	average = total / percentage.size();
+	printf("average rate: %f\n", average);
+}
+
+void matchTest()
+{
+	clock_t t;
+	t = clock();
+
+	/* descriptor matching */
+	matchesFiltering(matches_filter_id);
+
+	t = clock() - t;
+	printf("%s descriptors matching took me %d clocks (%f seconds).\n", KPDetector_name, t, ((float)t) / CLOCKS_PER_SEC);
+	printf("The matcher is %s.\n", descriptor_matcher_name);
+	printf("The matcher filter is %s.\n", matches_filter_name);
+	printf("keypoints1 numbers: %d.\n", (int)keypoints_sample.size());
+	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
+	printf("matching numbers: %d.\n", (int)matches.size());
+	printf("matching rate: %f.\n", (float)matches.size() / keypoints_frame.size());
+	percentage.push_back((float)matches.size() / (float)keypoints_frame.size());
 }
 
 //-----------------------------------------------------------------------------

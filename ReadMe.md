@@ -1,74 +1,84 @@
-# questions
-1. descriptors "BruteForce-Hamming" not working with other algorithm, why ?
-2. should I provide only the option of knn, or only normal match method, or both ?
-3. how to do image augmentation?(warp & perspective transform)
-
-# how to run the project
-This project use opencv 4.4.0 version with opencv_contrib 4.4.0 version.
-
-# motivation
-For keypoints detector and descriptor, I choose SURF(Speeded-Up Robust Features) way.
-
-## Harris Corner Detector and Shi-Tomasi Corner Detector
-**Harris Corner Detector** and **Shi-Tomasi Corner Detector** are both scale variant detectors, which are not suitable in case that the target has been scaled.
-
-## SIFT
-**Scale Invariant Feature Transform** is scale-invariant, good at handling illumination change as well.
-But it costs more time than SURF(about 3 times).
-
-
-## SURF
- **SURF** approximates LoG with Box Filter convolution, which is faster and is suitable for real-time detecting task.
- SURF is good at handling images with blurring and rotation, but not good at handling viewpoint change and illumination change.
- 
-
-## FAST
-It is several times faster than other existing corner detectors.
-But it is not robust to high levels of noise. It is dependent on a threshold.
-The **detectAndCompute** is not implemented for this feature detector.
-
-## BRIEF
-BRIEF is only a feature descriptor, not a detector.
-SIFT uses 128-dim vector for descriptors. SURF also takes minimum of 256 bytes (for 64-dim). 
-These floating-point data can be converted as binary string and match features using Hamming distance(faster).
-
-## ORB Oriented FAST and Rotated BRIEF
-ORB is basically a fusion of FAST keypoint detector and BRIEF descriptor with many modifications to enhance the performance,
-with rotation invariant.
-The paper says ORB is much faster than SURF and SIFT and ORB descriptor works better than SURF.
-It has a number of optional parameters. Most useful ones are nFeatures which denotes maximum number of features to be retained (by default 500),
-scoreType which denotes whether Harris score or FAST score to rank the features (by default, Harris score) etc. Another parameter,
-WTA_K decides number of points that produce each element of the oriented BRIEF descriptor. 
-By default it is two, ie selects two points at a time. In that case, for matching, NORM_HAMMING distance is used.
-If WTA_K is 3 or 4, which takes 3 or 4 points to produce BRIEF descriptor, then matching distance is defined by NORM_HAMMING2.
-# references
-opencv Feature Detection and Description
-https://docs.opencv.org/3.4/db/d27/tutorial_py_table_of_contents_feature2d.html
-
-
-short report, motivating modelling choices for every building block based on experimental
-and/or theoretical arguments, and discussing performances w.r.t. input marker features, view
-point changes, lighting variations, occlusions and background complexity.
-
 # Marker-based Augmented Reality model report
 
 ## Problem statement
-In this project, I need to design and implement an OpenCV solution.
-It relies on keypoint-based image descriptor to match between the image of a structured planar marker and its instance in webcam stream.
-In this project, I choose a book cover with rich keypoints and another with only a few keypoints to test.
 
+In this project, I need to design and implement an OpenCV solution. The solution relies on keypoint-based image descriptor to match between the image of a structured planar marker and its instance in webcam stream. In order to have a optimal solution under webcam stream utilization, there are several factors to consider about.
+
+1. **Computation Time**
+This factor is the most curcial one because in the solution, the detection and matching task should be finished less than 1 frame.
+The minimum value should be 30 frames per second so that the streaming is fluent enough, that's is to say, the maximum computation time should be less than 0.03 second for each frame.
+2. **Rotation & Scale Invariance**
+It is normal that the instance in webcam will be rotated or shown in different size. Therefore, a feature detector that has rotational variance or scale variance should not be considered.
+3. **Light Condition & Motion Blur**
+Sometimes the situation that the lighting is not ideal will happen or the instance is moving in front of camera. These factors should be also considered.
+4. **Distinctiveness**
+5. **Robustness**
+
+In this project, I choose a hard book cover with rich details and another with much less interest points as objects to test.
+I choose **SIFT**, **SURF**, **ORB**, **AKAZE** and **BRISK** as the feature detectors and carry out the experiments.
+The **Harris Corner Detector**[1] and **Shi-Tomasi Corner Detector**[2] is eliminated because of their scale-variant feature.
+
+## feature descriptors theory
+
+### SIFT(Scale Invariant Feature Transform)
+
+SIFT[3] is scale-invariant, which is also good at handling illumination change as well. It uses DoG as an approximation of LoG to calculate local extrema(potential keypoint) over scale[4]. SIFT provides distinctiveness, robustness and invariance to common image transformations such as rotation and scale. However such a robustness comes at a considerable computational cost[5].
+
+### SURF(Speeded-Up Robust Features)
+
+SURF[6] approximates LoG with Box Filter convolution calculation, which is faster and is suitable for real-time detecting task. SURF is good at handling images with blurring and rotation, but not good at handling viewpoint change and illumination change.[7] Its implementation is in opencv_contrib repository.
+
+### ORB(Oriented FAST and Rotated BRIEF)
+
+ORB[8] is a binary feature descriptor that came from *OpenCV Lab* and is basically a fusion of FAST[9] keypoint detector and BRIEF[10] descriptor with many modifications to enhance the performance and scale as well as rotational invariance[11]. It employs the efficient Hamming distance metric for matching and these features make it suitable for real-time feature detection and description.
+One of its parameters is *nFeatures* which denotes maximum number of features to be retained.
+
+### AKAZE
+
+AKAZE[12] is the accelerated version of KAZE[13] which uses non-linear scale space to find features. It uses a binary descriptor that exploits gradient infomation. It is proved to be an improvement in repeatability and distinctiviness compared to previous algorithms.
+
+### BRISK
+
+BRISK[14]
+
+## Experiment
+
+To have a optimal solution, I firstly evaluate the time for detection and matching operations of algorithms above. Each detector pointer is created with default parameters which are supposed to be the optimal ones.
+
+### performance
+
+
+## References
+
+1. [OPENCV -- Harris Corner Detection](https://docs.opencv.org/3.4/dc/d0d/tutorial_py_features_harris.html)
+
+2. [OPENCV -- Shi-Tomasi Corner Detector & Good Features to Track](https://docs.opencv.org/3.4/d4/d8c/tutorial_py_shi_tomasi.html)
+
+3. G. D. Lowe. Distinctive image features from scale-invariant keypoints. IJCV, pages 91–110, November 2004
+
+4. [OPENCV -- Introduction to SIFT (Scale-Invariant Feature Transform)](https://docs.opencv.org/3.4/da/df5/tutorial_py_sift_intro.html)
+
+5. A. Pieropan, M. Björkman, N. Bergström and D. Kragic, Feature Descriptors for Tracking by Detection: a Benchmark, Jul 2016, [online](https://arxiv.org/pdf/1607.06178.pdf)
+
+6. Bay, H., Ess, A., Tuytelaars, T., Gool, L.V.: Surf: Speeded Up Robust Features. Computer Vision and Image Understanding 10, 346–359 (2008)
+
+7. [OPENCV -- Introduction to SURF (Speeded-Up Robust Features)](https://docs.opencv.org/3.4/df/dd2/tutorial_py_surf_intro.html)
+
+8. Ethan Rublee, Vincent Rabaud, Kurt Konolige, Gary R. Bradski: ORB: An efficient alternative to SIFT or SURF. ICCV 2011: 2564-2571.
+
+9. Edward Rosten and Tom Drummond, “Machine learning for high speed corner detection” in 9th European Conference on Computer Vision, vol. 1, 2006, pp. 430–443.
+
+10. Michael Calonder, Vincent Lepetit, Christoph Strecha, and Pascal Fua, "BRIEF: Binary Robust Independent Elementary Features", 11th European Conference on Computer Vision (ECCV), Heraklion, Crete. LNCS Springer, September 2010.
+
+11. [OPENCV -- ORB (Oriented FAST and Rotated BRIEF)](https://docs.opencv.org/3.4/d1/d89/tutorial_py_orb.html)
+
+12. KAZE Features. Pablo F. Alcantarilla, Adrien Bartoli and Andrew J. Davison. In European Conference on Computer Vision (ECCV), Fiorenze, Italy, October 2012. bibtex
+
+13. Fast Explicit Diffusion for Accelerated Features in Nonlinear Scale Spaces. Pablo F. Alcantarilla, Jesús Nuevo and Adrien Bartoli. In British Machine Vision Conference (BMVC), Bristol, UK, September 2013. bibtex
 
 https://arxiv.org/ftp/arxiv/papers/1710/1710.02726.pdf
 
+# how to run the project
 
-	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
-	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
-	printf("matching numbers: %d.\n", (int)matches.size());
-	printf("matching rate: %f.\n", (float)matches.size() / (float)keypoints_sample.size());
-	percentage.push_back((float)matches.size() / (float)keypoints_sample.size());
+This project use opencv 4.4.0 version with opencv_contrib 4.4.0 version.
 
-	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
-		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-
-
-	
