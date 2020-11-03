@@ -326,9 +326,8 @@ void update()
 			double alpha = (double)opacity_value / (double)opacity_max_value;
 			double beta = 1 - alpha;
 
-			img_overlay = overlay_image_bgr(frame, img_homography);
-
-			addWeighted(img_overlay, alpha, frame, beta, 0.0, frame_augmented);
+			addWeighted(img_homography, alpha, frame, beta, 0.0, img_overlay);
+			frame_augmented = overlay_image_bgr(frame, img_overlay);
 		}
 		else
 		{
