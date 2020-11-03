@@ -24,6 +24,8 @@ const char* WIN_AUGMENTATION_NAME = "Augmentation";
 
 bool TEST_MODE = false; // whether all the parameters be shown
 
+bool value_changed = false; // whether user change parameter at current frame
+
 char  input_img_paths[2][256]; // path for input images
 
 Mat img_in[2];
@@ -184,6 +186,7 @@ int main(int argc, char* argv[])
 	{
 		update();
 		clearVectors();
+		value_changed = false;
 
 		if (waitKey(30) >= 0)
 			break;
@@ -285,8 +288,6 @@ void update()
 	curr_KPDetector->detectAndCompute(img_sample, noArray(), keypoints_sample, descriptors_sample);
 	curr_KPDetector->detectAndCompute(frame_gray, noArray(), keypoints_frame, descriptors_frame);
 
-	drawKeypoints(img_sample, keypoints_sample, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
 	/* descriptor conversion */
 	if (descriptor_matcher_id == 0) // for FLANN matcher
 	{
@@ -299,9 +300,6 @@ void update()
 
 	/* descriptor matching */
 	matchesFiltering(matches_filter_id);
-
-	drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
-		Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
 	/* push into list of points that are in matches of sample image and frame */
 	for (size_t i = 0; i < matches.size(); i++)
@@ -339,7 +337,16 @@ void update()
 	}
 
 	/* show result */
-	showResult();
+
+	if (!value_changed)
+	{
+		drawKeypoints(img_sample, keypoints_sample, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+		drawMatches(img_sample, keypoints_sample, frame_gray, keypoints_frame, matches, img_matches, Scalar::all(-1),
+			Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+		showResult();
+	}
 }
 
 void callback(int value, void* userdata)
@@ -353,6 +360,8 @@ void callback(int value, void* userdata)
 
 	matchesFiltering(matches_filter_id);
 	cout << "> Matches Filtering  | " << matches_filter_name << endl;
+
+	value_changed = true;
 }
 
 Mat overlay_image_bgr(Mat in_frame, Mat in_target)
@@ -365,11 +374,6 @@ Mat overlay_image_bgr(Mat in_frame, Mat in_target)
 
 	for (j = 0; j < nrows; j++) {
 		for (i = 0; i < ncols; i++) {
-			/*
-			cout << (int)in_target.at<Vec3b>(0, 0)[0] << endl;
-			cout << (int)in_target.at<Vec3b>(0, 0)[1] << endl;
-			cout << (int)in_target.at<Vec3b>(0, 0)[2] << endl;
-			*/
 			if (in_target.at<Vec3b>(j, i)[0] > 0)
 			{
 				out.at<Vec3b>(j, i)[0] = in_target.at<Vec3b>(j, i)[0];
@@ -383,7 +387,7 @@ Mat overlay_image_bgr(Mat in_frame, Mat in_target)
 
 void showResult()
 {
-	//imshow(WIN_KEYPOINTS_NAME, img_keypoints);
+	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
 	imshow(WIN_SETTINGS_NAME, img_matches);
 	imshow(WIN_AUGMENTATION_NAME, frame_augmented);
 }
