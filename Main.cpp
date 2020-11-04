@@ -22,7 +22,7 @@ const char* WIN_MATCHES_NAME = "Matches";
 const char* WIN_SETTINGS_NAME = "Settings";
 const char* WIN_AUGMENTATION_NAME = "Augmentation";
 
-bool TEST_MODE = false; // whether all the parameters be shown
+bool TEST_MODE = true; // whether all the parameters be shown
 
 bool value_changed = false; // whether user change parameter at current frame
 
@@ -58,24 +58,23 @@ Ptr<ORB> orb;
 Ptr<SIFT> sift;
 Ptr<BRISK> brisk;
 Ptr<xfeatures2d::SURF> surf;
-
 Ptr<Feature2D> curr_KPDetector;
 
 /* Keypoint detector trackbar */
 const char* KPDetector_name = "KPDetector";
 int KPDetector_max_value = 4;
-int KPDetector_id = 4;
+int KPDetector_id = 1;
 
 Ptr<Feature2D> setKPDetector(int id)
 {
 	switch (id) {
 	case 0:
 	default:
-		KPDetector_name = "SIFT";
-		return sift;
-	case 1:
 		KPDetector_name = "SURF";
 		return surf;
+	case 1:
+		KPDetector_name = "SIFT";
+		return sift;
 	case 2:
 		KPDetector_name = "ORB";
 		return orb;
@@ -95,17 +94,19 @@ Ptr<BFMatcher> BFHamming_matcher;  // - BruteForce-Hamming
 Ptr<FlannBasedMatcher> FLANN_based_matcher; // - FLANN based
 Ptr<DescriptorMatcher> curr_descriptor_matcher;
 
+bool crossCheck = false; // matcher crossCheck
+
 /* Descriptor Matcher trackbar */
 const char* descriptor_matcher_name = "Descriptor Matcher";
 int descriptor_matcher_max_value = 3;
-int descriptor_matcher_id = 3;
+int descriptor_matcher_id = 0;
 
 Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 {
 	switch (id) {
 	case 0:
 	default:
-		descriptor_matcher_name = "FLANN based"; // suitable for SURF, SIFT
+		descriptor_matcher_name = "FLANN based";
 		return FLANN_based_matcher;
 	case 1:
 		descriptor_matcher_name = "BruteForce (L1 norm)";
@@ -122,7 +123,9 @@ Ptr<DescriptorMatcher> setDescriptorMatcher(int id)
 /* Matches Filter trackbar */
 const char* matches_filter_name = "Matches Filter";
 int matches_filter_max_value = 1;
-int matches_filter_id = 0;
+int matches_filter_id = 1;
+
+const float ratio_threshold = 0.7f;
 
 void matchesFiltering(int id)
 {
@@ -131,7 +134,6 @@ void matchesFiltering(int id)
 	default: {
 		matches_filter_name = "KNN filtering";
 		curr_descriptor_matcher->knnMatch(descriptors_sample, descriptors_frame, knn_matches, 2);
-		const float ratio_threshold = 0.7f;
 		for (size_t i = 0; i < knn_matches.size(); i++)
 		{
 			if (knn_matches[i][0].distance < ratio_threshold * knn_matches[i][1].distance)
@@ -143,17 +145,20 @@ void matchesFiltering(int id)
 		   break;
 	case 1: {
 		matches_filter_name = "Score filtering";
-
 		curr_descriptor_matcher->match(descriptors_sample, descriptors_frame, matches);
 
+		/*
 		size_t nb_matches = matches.size();
-		double goodMatchRatio = 0.5;
+		double goodMatchRatio = 0.7;
 		int nb_good_matches = (int)(nb_matches * goodMatchRatio);
 		// Sort matches by score
 		sort(matches.begin(), matches.end());
 		// Filter out matches with large scores
 		matches.erase(matches.begin() + nb_good_matches, matches.end());
+
+		  */
 	}
+
 		  break;
 	}
 }
@@ -172,6 +177,7 @@ void callback(int value, void* userdata); // callback when parameters are modifi
 Mat overlay_image_bgr(Mat in_frame, Mat in_target);
 void showResult(); // show generated images
 void clearVectors(); // release space of pointers and list created
+void calculateAverage();
 int usage(char* prgname);
 
 int main(int argc, char* argv[])
@@ -180,7 +186,7 @@ int main(int argc, char* argv[])
 	init();
 
 	createGUI();
-	callback(KPDetector_id, 0);
+	callback(0, 0);
 
 	while (true)
 	{
@@ -191,6 +197,7 @@ int main(int argc, char* argv[])
 		if (waitKey(30) >= 0)
 			break;
 	}
+	calculateAverage();
 
 	destroyAllWindows();
 
@@ -232,6 +239,23 @@ void parseInput(int argc, char* argv[])
 	img_target = img_in[1];
 }
 
+/* SIFT parameters */
+int 	nfeatures = 0;
+int 	nOctaveLayers_sift = 3;
+double 	contrastThreshold = 0.04;
+double 	edgeThreshold = 10;
+double 	sigma = 1.6;
+
+/* SURF parameters */
+double 	hessianThreshold = 100;
+int 	nOctaves_surf = 4;
+int 	nOctaveLayers = 3;
+
+/* BRISK parameters */
+int 	threshold_brisk = 15;
+int 	octaves_brisk = 4;
+float 	patternScale = 1.0f;
+
 void init()
 {
 	/* webcam input */
@@ -244,14 +268,14 @@ void init()
 	/* Keypoint Detector pointers creation */
 	akaze = AKAZE::create();
 	orb = ORB::create();
-	sift = SIFT::create();
-	brisk = BRISK::create();
-	surf = xfeatures2d::SURF::create();
+	sift = SIFT::create(nfeatures, nOctaveLayers_sift, contrastThreshold, edgeThreshold, sigma);
+	brisk = BRISK::create(threshold_brisk, octaves_brisk, patternScale);
+	surf = xfeatures2d::SURF::create(hessianThreshold, nOctaves_surf, nOctaveLayers);
 
 	/* Descriptor Matcher pointers creation */
-	BFL1_matcher = BFMatcher::create(NORM_L1);
-	BFL2_matcher = BFMatcher::create(NORM_L2);
-	BFHamming_matcher = BFMatcher::create(NORM_HAMMING);
+	BFL1_matcher = BFMatcher::create(NORM_L1, crossCheck);
+	BFL2_matcher = BFMatcher::create(NORM_L2, crossCheck);
+	BFHamming_matcher = BFMatcher::create(NORM_HAMMING, crossCheck);
 	FLANN_based_matcher = FlannBasedMatcher::create();
 }
 
@@ -284,22 +308,39 @@ void update()
 	cap >> frame;
 	cvtColor(frame, frame_gray, COLOR_BGR2GRAY);
 
+	clock_t t;
+	t = clock();
+
 	/* KPDetector extraction */
 	curr_KPDetector->detectAndCompute(img_sample, noArray(), keypoints_sample, descriptors_sample);
 	curr_KPDetector->detectAndCompute(frame_gray, noArray(), keypoints_frame, descriptors_frame);
 
-	/* descriptor conversion */
-	if (descriptor_matcher_id == 0) // for FLANN matcher
-	{
-		if (KPDetector_id == 2 || KPDetector_id == 0) // for ORB descriptors
-		{
-			descriptors_sample.convertTo(descriptors_sample, CV_32F);
-			descriptors_frame.convertTo(descriptors_frame, CV_32F);
-		}
-	}
-
 	/* descriptor matching */
 	matchesFiltering(matches_filter_id);
+	t = clock() - t;
+	printf("%s descriptors matching took me %d clocks (%f seconds).\n", KPDetector_name, t, ((float)t) / CLOCKS_PER_SEC);
+	printf("current matcher is %s.\n", descriptor_matcher_name);
+	if (descriptor_matcher_id != 0)
+	{
+		if (crossCheck)
+			cout << "cross check: True " << endl;
+		else
+			cout << "cross check: False" << endl;
+	}
+
+	printf("keypoints1 numbers: %d.\n", (int)keypoints_sample.size());
+	printf("keypoints2 numbers: %d.\n", (int)keypoints_frame.size());
+	printf("matching numbers: %d.\n", (int)matches.size());
+	printf("matching rate: %f.\n", (float)matches.size() / keypoints_frame.size());
+	percentage.push_back((float)matches.size() / (float)keypoints_frame.size());
+
+	size_t nb_matches = matches.size();
+	double goodMatchRatio = 0.7;
+	int nb_good_matches = (int)(nb_matches * goodMatchRatio);
+	// Sort matches by score
+	sort(matches.begin(), matches.end());
+	// Filter out matches with large scores
+	matches.erase(matches.begin() + nb_good_matches, matches.end());
 
 	/* push into list of points that are in matches of sample image and frame */
 	for (size_t i = 0; i < matches.size(); i++)
@@ -336,7 +377,6 @@ void update()
 	}
 
 	/* show result */
-
 	if (!value_changed)
 	{
 		drawKeypoints(img_sample, keypoints_sample, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
@@ -457,6 +497,19 @@ void KPTests()
 
 	drawKeypoints(img_sample, keypoints_sample, img_keypoints, Scalar::all(-1), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	imshow(WIN_KEYPOINTS_NAME, img_keypoints);
+}
+
+void KPParamsTest()
+{
+	printf("nfeatures: %d.\n", nfeatures);
+	printf("nOtavesLayers: %d.\n", nOctaveLayers_sift);
+	printf("contrast threshold: %f. \n", (float)contrastThreshold);
+	printf("edge threshold: %f. \n", (float)edgeThreshold);
+	printf("sigma: %f. \n", (float)sigma);
+
+	printf("threshold: %d.\n", threshold_brisk);
+	printf("Otaves: %d.\n", octaves_brisk);
+	printf("pattern scale: %f. \n", patternScale);
 }
 
 void calculateAverage()
