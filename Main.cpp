@@ -7,7 +7,6 @@
 #include <opencv2/features2d.hpp>
 #include "opencv2/flann.hpp"
 #include "opencv2/calib3d.hpp"
-#include "ImageUtilities.h"
 
 #include <opencv2/xfeatures2d.hpp>
 
@@ -360,7 +359,7 @@ void update()
 	/* perspective transformation of matching points */
 	if (points_sample.size() != 0 && points_frame.size() != 0)
 	{
-		// define the form
+		// calculate the perspective transformation
 		Mat H = findHomography(points_sample, points_frame, RANSAC);
 
 		if (!H.empty())
